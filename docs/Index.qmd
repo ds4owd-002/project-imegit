@@ -1,0 +1,205 @@
+---
+title: "Capstone: Drinking water and sanitation services in African and Asian countries"
+author: 
+  name: "Augustine Madumere"
+  orcid:
+  email: austin.madumere@gmail.com
+  affiliation:
+    name: Global Health Engineering, ETH Zurich
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+execute:
+  warning: false
+format:
+  html:
+    toc: true
+    toc_depth: 2
+    code-fold: true
+bibliography: ../references.bib
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(ggthemes)
+library(gt)
+
+```
+
+## Abstract
+
+Access to safe drinking water and sanitation remains unevenly distributed across world regions, with countries in Africa and Asia facing some of the largest shortfalls relative to the Sustainable Development Goals (SDGs). This capstone uses country-level data from the WHO/UNICEF Joint Monitoring Programme (JMP) household database (downloaded June 2019) to describe trends in selected water and sanitation service levels for African and Asian countries between 1990 and 2016. The dataset was restricted to national estimates for these two regions and restructured so that each row represents a country–year–service–setting combination, with indicators for improved services, piped (water) or sewer (sanitation) connections, and no basic service (surface water or open defecation). Unweighted mean and median coverage were calculated across countries by year, continent, service type and urban/rural setting, and summarised using tables and line plots. Coverage with improved water and sanitation services increased over time in both regions, with more rapid gains in rural areas from low starting levels, yet urban coverage consistently exceeded rural coverage, particularly for sanitation. The share of the population without basic services declined but remained substantially higher in rural areas. Asian countries, on average, exhibited higher levels of improved service coverage than African countries. These findings highlight persistent regional and urban–rural inequalities in basic WASH services and underscore the need for accelerated progress in African countries and rural areas if SDG targets 6.1 and 6.2 are to be met.
+
+## Introduction
+
+Access to safe drinking water and sanitation is a core component of public health, social development and the Sustainable Development Goals (SDGs).[@WHO2017] Large inequalities in access persist both between and within world regions, with countries in Africa and Asia facing some of the greatest challenges in expanding basic services.[@JMP2019] The WHO/UNICEF Joint Monitoring Programme (JMP) compiles nationally representative household data to track progress in water, sanitation and hygiene (WASH) coverage over time and to monitor global and national progress towards SDG targets 6.1 and 6.2.[@JMP2019]
+
+Recent global estimates from the JMP underline both substantial gains and persistent gaps in household WASH services. Between 2000 and 2024, around 2.2 billion people gained access to safely managed drinking water and 2.8 billion to safely managed sanitation, yet an estimated 2.1 billion still lacked safely managed drinking water, 3.4 billion lacked safely managed sanitation and 1.7 billion lacked basic hygiene services in 2024.[@who_unicef_jmp_2025] These deficits are increasingly concentrated in low- and lower-middle-income countries and in fragile contexts, where current rates of progress would need to increase several-fold to achieve the SDG targets.[@who_unicef_jmp_2025] The 2025 JMP update places a special emphasis on inequalities, documenting large and persistent disparities between rural and urban areas, between wealth groups and between regions, with sub-Saharan Africa and parts of Asia bearing a disproportionate share of the global shortfall in safely managed WASH services.[@who_unicef_jmp_2025]
+
+Previous methodological work has used JMP data to model uncertainty and compositional aspects of WASH coverage, notably by Ezbakhe and Pérez-Foguet, who apply generalized additive models and compositional data analysis to assess uncertainty in country-level trends.[@Ezbakhe2019] In this capstone, we use the same underlying JMP household database but conduct a purely descriptive analysis of selected water and sanitation service levels for African and Asian countries. We focus on differences between urban and rural populations and on the share of people without basic services (surface water and open defecation), with the aim of illustrating regional patterns and inequalities in service coverage rather than quantifying statistical uncertainty.
+
+## Methods
+
+We used country-level household data from the WHO/UNICEF JMP global database on drinking water and sanitation services.[@JMP2019] The raw data were downloaded in June 2019 and include national estimates of the proportion of the population using different types of water and sanitation services by year, urban/rural setting and country. For this capstone, we restricted the dataset to countries in Africa and Asia based on ISO3 country codes, and reshaped the data so that each row represents a country–year–service–setting combination with a single percentage value for a given service level. Indicators were grouped into improved services, piped (water) or sewer (sanitation) connections, and no basic service (surface water or open defecation), following the definitions used in previous work.[@Ezbakhe2019] Analyses are purely descriptive: we calculated unweighted mean and median coverage across countries by year, continent, service, setting and service level, and visualised temporal trends and regional differences using line plots and summary tables produced in R (tidyverse) within the Posit (RStudio) environment.
+
+```{r}
+jmp_processed <- read_csv("../data/processed/jmp_processed.csv")
+
+#glimpse(jmp_processed)
+
+```
+
+## Results
+
+## Summary of data
+
+```{r}
+#| label: tbl-summary
+#| tbl-cap: "Summary statistics for coverage of improved water and sanitation services by setting."
+
+summary_table <- jmp_processed |>
+  filter(indicator == "improved") |>
+    group_by(Service, Setting) |>
+summarise(
+n      = n(),
+mean   = mean(percent, na.rm = TRUE),
+median = median(percent, na.rm = TRUE),
+sd     = sd(percent, na.rm = TRUE),
+.groups = "drop"
+)
+kable(summary_table, 
+      digits = 1)
+
+```
+
+@tbl-summary summarises the distribution of improved service coverage across all country–year observations in African and Asian countries combined. On average, urban coverage is higher than rural coverage for both water and sanitation. Variation is larger for sanitation, as shown by the higher standard deviations, reflecting substantial differences between countries.
+
+```{r}
+#| label: tbl-region-summary
+#| tbl-cap: "Summary of improved service coverage in African and Asian countries by service type and setting."
+#| 
+region_summary <- jmp_processed |>
+filter(indicator == "improved") |>
+group_by(continent, Service, Setting) |>
+summarise(
+n      = n(),
+mean   = mean(percent, na.rm = TRUE),
+median = median(percent, na.rm = TRUE),
+sd     = sd(percent, na.rm = TRUE),
+.groups = "drop"
+)
+
+kable(region_summary, digits = 1)
+
+```
+
+@tbl-region-summary compares improved service coverage between African and Asian countries by service type and setting. On average, Asian countries have higher levels of improved water and sanitation coverage than African countries, particularly in rural areas. The larger standard deviations for sanitation in Africa suggest greater variation between countries in this region.
+
+## Trends in improved services
+
+```{r}
+#| label: fig-water-trends
+#| fig-cap: "Mean coverage with improved water and sanitation services by setting in African and Asian countries, 1990–2016."
+
+improved_summary <- jmp_processed |>
+filter(indicator == "improved") |>
+group_by(Year, Service, Setting) |>
+summarise(
+mean_percent = mean(percent, na.rm = TRUE),
+.groups = "drop"
+)
+
+ggplot(improved_summary,
+aes(x = Year, y = mean_percent, colour = Setting)) +
+geom_line() +
+facet_wrap(~ Service) +
+scale_y_continuous(limits = c(0, 100)) +
+labs(
+title   = "Improved water and sanitation services",
+x       = "Year of survey",
+y       = "Mean percentage of population",
+colour  = "Setting"
+) +
+theme_minimal()
+
+```
+
+As shown in @fig-water-trends, coverage with improved services has generally increased over time for both water and sanitation. Throughout the period, urban coverage remains substantially higher than rural coverage, especially for sanitation. Gains in rural sanitation coverage appear particularly marked from the early 2000s onwards, reflecting expansion from low initial levels.
+
+## Trends in population with no basic services
+
+```{r}
+#| label: fig-no-service-trends
+#| fig-cap: "Mean share of the population with no basic services (surface water or open defecation) by setting in African and Asian countries, 1990–2016."
+
+no_service_summary <- jmp_processed |>
+filter(indicator %in% c("no_facility", "open_defecation")) |>
+group_by(Year, Service, Setting) |>
+summarise(
+mean_percent = mean(percent, na.rm = TRUE),
+.groups = "drop"
+)
+
+ggplot(no_service_summary,
+aes(x = Year, y = mean_percent, colour = Setting)) +
+geom_line() +
+facet_wrap(~ Service) +
+scale_y_continuous(limits = c(0, 100)) +
+labs(
+title  = "No basic water and sanitation services",
+x      = "Year of survey",
+y      = "Mean percentage of population",
+colour = "Setting"
+) +
+theme_minimal()
+
+```
+
+@fig-no-service-trends highlights a substantial decline in the share of the population relying on surface water and practising open defecation in both regions. Declines are most pronounced in rural areas, where initial levels of no service were highest. However, by the end of the period, rural areas still have a higher proportion of people without basic services than urban areas for both water and sanitation.
+
+## Regional comparison of improved services
+
+```{r}
+#| label: fig-improved-af-asia
+#| fig-cap: "Mean coverage with improved water and sanitation services in African and Asian countries by setting, 1990–2016."
+
+improved_region <- jmp_processed |>
+filter(indicator == "improved") |>
+group_by(Year, continent, Service, Setting) |>
+summarise(
+mean_percent = mean(percent, na.rm = TRUE),
+.groups = "drop"
+)
+
+ggplot(improved_region,
+aes(x = Year, y = mean_percent,
+colour = continent, linetype = Setting)) +
+geom_line() +
+facet_wrap(~ Service) +
+scale_y_continuous(limits = c(0, 100)) +
+labs(
+title    = "Improved services in African and Asian countries",
+x        = "Year of survey",
+y        = "Mean percentage of population",
+colour   = "Continent",
+linetype = "Setting"
+) +
+theme_minimal()
+
+```
+
+As shown in @fig-improved-af-asia, mean coverage with improved services is consistently higher in Asian countries than in African countries for both water and sanitation. Urban coverage exceeds rural coverage in both regions, but the urban–rural gap is particularly wide for sanitation in Africa. Over time, both regions have made progress, although African countries start from lower baseline levels and show slower convergence towards full coverage.
+
+## Conclusions
+
+-   Coverage with improved drinking water and sanitation services increased between 1990 and 2016 in African and Asian countries, particularly for rural populations.
+
+-   Urban populations have consistently higher coverage than rural populations in both regions, with especially large gaps in sanitation.
+
+-   The proportion of the population relying on surface water and practising open defecation has declined over time, but rural areas still carry a disproportionate burden of no basic services.
+
+-   Asian countries, on average, have higher levels of improved service coverage than African countries, reflecting regional differences in infrastructure development and investment.
+
+-   Descriptive analyses of JMP data can highlight broad regional patterns and inequalities, but more detailed country-level studies are needed to understand local drivers and guide policy responses.

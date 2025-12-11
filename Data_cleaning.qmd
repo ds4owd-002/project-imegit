@@ -1,0 +1,131 @@
+---
+title: "Data Cleaning Process"
+author: "Augustine Madumere"
+format:
+  html:
+    embed-resources: true
+editor: visual
+execute:
+  warning: false
+editor_options:
+  chunk_output_type: console
+---
+
+### Project description
+
+The dataset contains national, regional, and global estimates of population access to different levels of drinking water, sanitation, and hygiene services. Data is disaggregated by year, location (urban/rural), and service level. This capstone will keep only Africa and Asia.
+
+```{r}
+# Import
+library(tidyverse)
+library(countrycode)
+
+```
+
+```{r}
+raw_path <-"data/raw/JMPdata.csv"
+jmp_raw <- read_csv(raw_path)
+
+glimpse(jmp_raw)
+
+```
+
+```{r}
+# 2. Basic cleaning: split country, drop index column ---------------------
+jmp_clean <- jmp_raw |>
+ # drop index column if present (adjust name if different)
+select(-matches("Unnamed")) |>
+  # Country is assumed to be like "AFG_Afghanistan"
+  separate(
+    col  = Country,
+    into = c("iso3", "country_name"),
+    sep  = "_",
+    extra = "merge",
+    fill  = "right"
+  )|>
+  mutate(
+    country_name = str_replace_all(country_name, "_", " "),
+    Service      = factor(Service),
+    Setting      = factor(Setting)
+  )
+
+```
+
+```{r}
+# 3. Add continent and filter to Africa & Asia ----------------------------
+jmp_clean<-jmp_clean |>
+  mutate(
+    continent = countrycode(iso3, origin = "iso3c", destination = "continent")
+  ) |>
+  filter(continent %in% c("Africa", "Asia"))
+```
+
+```{r}
+# 4. Reshape indicators to long format ------------------------------------
+
+jmp_long <-jmp_clean |>
+  pivot_longer(
+    cols      = c(x1, x2, x3),
+    names_to  = "indicator_raw",
+    values_to = "percent"
+  )  |>
+  mutate(
+    indicator = case_when(
+      # Water
+      indicator_raw == "x1" & Service == "Water"      ~ "improved",
+      indicator_raw == "x2" & Service == "Water"      ~ "piped",
+      indicator_raw == "x3" & Service == "Water"      ~ "no_facility",
+      # Sanitation
+      indicator_raw == "x1" & Service == "Sanitation" ~ "improved",
+      indicator_raw == "x2" & Service == "Sanitation" ~ "sewer",
+      indicator_raw == "x3" & Service == "Sanitation" ~ "open_defecation",
+      # Fallback
+      TRUE                                            ~ indicator_raw
+    )
+  )
+```
+
+```{r}
+# 5. Basic quality check: keep plausible percentages ----------------------
+
+jmp_long <- jmp_long |>
+  mutate(
+    percent = ifelse(percent < 0 | percent > 100, NA_real_, percent)
+  )
+
+# check summary on percent NA'a 1719
+summary(jmp_long$percent)
+```
+
+```{r}
+# 6. Save processed data --------------------------------------------------
+processed_dir <- "data/processed"
+if (!dir.exists(processed_dir)) dir.create(processed_dir, recursive = TRUE)
+
+processed_path <- file.path(processed_dir, "jmp_processed.csv")
+write_csv(jmp_long, processed_path)
+```
+
+```{r}
+# 7. Create data dictionary -----------------------------------------------
+
+data_dictionary <- tribble(
+  ~variable_name, ~description,
+  "iso3",          "ISO 3166-1 alpha-3 country code",
+  "country_name",  "Country or area name",
+  "Service",       "Type of service: Water or Sanitation",
+  "Setting",       "Place of residence: Urban or Rural",
+  "Year",          "Year of the household survey / estimate",
+  "continent",     "Continent of the country (Africa or Asia)",
+  "indicator_raw", "Original indicator name in the raw data (x1, x2, x3)",
+  "indicator",     "Service level category (improved, piped, sewer, no_facility, open_defecation)",
+  "percent",       "Percentage of the population using the given service level"
+)
+
+dict_path <- file.path(processed_dir, "dictionary.csv")
+write_csv(data_dictionary, dict_path)
+
+cat("Cleaning complete. Files written to:\n",
+    processed_path, "\n",
+    dict_path, "\n")
+```

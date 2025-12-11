@@ -1,2 +1,10 @@
 variable_name,description
-,
+iso3,ISO 3166-1 alpha-3 country code
+country_name,Country or area name
+Service,Type of service: Water or Sanitation
+Setting,Place of residence: Urban or Rural
+Year,Year of the household survey / estimate
+continent,Continent of the country (Africa or Asia)
+indicator_raw,"Original indicator name in the raw data (x1, x2, x3)"
+indicator,"Service level category (improved, piped, sewer, no_facility, open_defecation)"
+percent,Percentage of the population using the given service level
