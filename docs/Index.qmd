@@ -2,7 +2,7 @@
 title: "Capstone: Drinking water and sanitation services in African and Asian countries"
 author: 
   name: "Augustine Madumere"
-  orcid:
+  orcid: 0000-0002-9528-9470
   email: austin.madumere@gmail.com
   affiliation:
     name: Global Health Engineering, ETH Zurich
