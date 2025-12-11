@@ -23,7 +23,7 @@
 
 5.  Information about funding sources that supported the collection of the data:\
     The original data compilation and estimation were carried out by the WHO/UNICEF Joint Monitoring Programme for Water Supply, Sanitation and Hygiene (JMP).\
-    (Add your own course/project funding information if relevant.)
+    
 
 ## Sharing / access information
 
@@ -32,7 +32,7 @@
 
 2.  Links to publications that cite or use the data:
 
-    -   (Add links to your own report/thesis once available.)
+    - https://ds4owd-002.github.io/project-imegit/
 
 3.  Links to other publicly accessible locations of the data:
 
